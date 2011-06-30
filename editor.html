@@ -10,16 +10,98 @@
 
 function readParams()
 {
+	var nameRegExp=/(widht|height)+/g
 	var res={};
 	var childrens=$("#paramForm").children();
 	for(var i=0;i<childrens.length;i++)
-		res[childrens[i].id]=childrens[i].value;
+	{
+		if(nameRegExp.test(childrens[i].id.toLowerCase()))
+		{
+			var typeParseRegExp=/([0-9]*)(em|pt|px)?/g;	
+			var parsedInput=typeParseRegExp.exec(childrens[i].value);
+			var val=parsedInput[1];
+			var dim=parsedInput[2];
+			if(!dim)
+			{
+				res[childrens[i].id]=parseFloat(val);			
+			}else {
+				res[childrens[i].id]=convert(val,dim,"px");			
+			}
+		}else {
+			res[childrens[i].id]=parseFloat(childrens[i].value);			
+		}
+	}
 	return res;
+}
+
+function convert(val,from,to)
+{
+	if(!val)
+		return 0;
+	var convertMtply={
+		ptToPx:1.5,
+		pxToEm: 1/16,
+		ptToEm: 1/12
+	};
+	from=from.toLowerCase();
+	to=to.toLowerCase();
+	if(from==to)
+		return parseFloat(val);
+	if(from!="pt" && from!="em" && from!="px")
+		throw new Error("error value type");
+	if(to!="pt" && to!="em" && to!="px")
+		throw new Error("error value type");
+		
+	var p1=from;
+	var p2=to;
+	var param=p1+"To"+p2[0].toUpperCase()+p2.slice(1);
+	var mltply=1;
+	if(convertMtply[param])
+		mltply=convertMtply[param];
+	else {
+		param=p2+"To"+p1[0].toUpperCase()+p1.slice(1);
+		if(convertMtply[param])
+			mltply=1/convertMtply[param];
+		else 
+			throw new Error("not found this convert value");
+	}
+	return parseFloat(val)*mltply;
+}
+
+
+function draw(paramObj)
+{
+	var canvas=$("#mainCanvas").get(0);
+	var context=canvas.getContext("2d");
+	
+	context.lineWidth=1;
+	context.strokeStyle = "#aaa";
+	context.beginPath();
+	for(var y=0;y<paramObj.fullHeight;y=y+paramObj.fontHeight*paramObj.interlinearFactor)
+	{
+		context.moveTo(0,y);
+		context.lineTo(paramObj.fullWidth,y);
+	}
+	context.closePath();
+	context.stroke();
+	
+	context.globalAlpha = 0.1;
+	context.fillStyle="#eaa";
+	for(var y=0;y<paramObj.fullHeight;y=y+paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1))
+		context.fillRect(0, y, paramObj.fullWidth, paramObj.fontHeight*paramObj.interlinearFactor*paramObj.horizBlockRowCount);
+	
+	
+	context.fillStyle="#faa";
+	for(var i=0;i<paramObj.vetricalBlockCount;i++)
+		context.fillRect(i*(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth), 0,paramObj.vetricalBlockWidth , paramObj.fullHeight);
+
 }
 
 function createCanvas(paramObj)
 {
-	$("#mainCanvas").width(paramObj.fullWidth);
+	$("#mainCanvas")[0].width=paramObj.fullWidth;
+	$("#mainCanvas")[0].height=paramObj.fullHeight;
+	draw(paramObj);
 }
 
 $(document).ready(function() {
@@ -35,12 +117,14 @@ $(document).ready(function() {
 
 <div id="paramForm">
 Общая ширина: <input type="text" id="fullWidth" value="960"></input><br>
+Общая высота: <input type="text" id="fullHeight" value="2000"></input><br>
 Высота шрифта: <input type="text" id="fontHeight" value="16"></input><br>
 Междустрочный интервал: <input type="text" id="interlinearFactor" value="1.5"></input><br>
+Высота строки: <span id="rowHeight"></span>
 Строк в горизонтальном блоке: <input type="text" id="horizBlockRowCount" value="3"></input><br>
-Количество вертикальных блоков: <input type="text" id="vetricalBlockCount"></input><br>
-Ширина вертикального блока: <input type="text" id="vetricalBlockWidth"></input><br>
-Расстояние между блоками: <input type="text" id="vetricalBlockSpacerWidth"></input><br>
+Количество вертикальных блоков: <input type="text" id="vetricalBlockCount" value="12"></input><br>
+Ширина вертикального блока: <input type="text" id="vetricalBlockWidth" value="120"></input><br>
+Расстояние между блоками: <input type="text" id="vetricalBlockSpacerWidth" value="15px"></input><br>
 <button id="do">Создать канвас</button>
 </div>
 <canvas id="mainCanvas" style="border: 1px solid;">

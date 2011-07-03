@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html> 
+﻿<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8" />
@@ -7,6 +7,62 @@
 <script type="text/javascript" src="./jquery.min.js"></script>
 
 <script type="text/javascript">
+
+function getLimitedFunction(obj, func, freqPerSecond) {
+    if (typeof func !== "function") 
+        throw new Error("Is not function in argument")
+
+    var previousCheckTime = new Date().valueOf()
+    var currentSecondCount = 0
+    return function decoratedFunction() {
+        var currentTime = new Date().valueOf()
+        if (currentTime - previousCheckTime > 100) {
+            previousCheckTime = currentTime
+            currentSecondCount = 0
+        }else {
+            if (currentSecondCount >= freqPerSecond) 
+                return
+        }
+        currentSecondCount++
+        func.apply(obj, arguments)
+    }
+}
+
+
+this.mainLoop=getLimitedFunction(this,function() {
+	clearCanvas();
+	drawGrid();
+	drawBlocks();
+	drawNewBlock();
+},3)
+
+
+var mousePressed=false;
+var canvas;
+var context;
+var blocks=[];
+var blockCandidate;
+
+function drawBlocks() {
+	for (var i=0; i < blocks.length; i++) {
+		var block=blocks[i];
+		drawBlock(block);
+	};
+}
+
+function drawBlock(block)
+{
+	context.globalAlpha = 0.2;
+	context.fillStyle="#aae";
+	context.fillRect(block.x,block.y,block.width,block.height);
+}
+
+function drawNewBlock() {
+	if(!blockCandidate) return;
+	context.globalAlpha = 0.1;
+	context.fillStyle="#aae";
+	context.fillRect(blockCandidate.x,blockCandidate.y,blockCandidate.width,blockCandidate.height);	
+}
 
 function readParams()
 {
@@ -69,11 +125,8 @@ function convert(val,from,to)
 }
 
 
-function draw(paramObj)
+function drawGrid()
 {
-	var canvas=$("#mainCanvas").get(0);
-	var context=canvas.getContext("2d");
-	
 	context.lineWidth=1;
 	context.strokeStyle = "#aaa";
 	context.beginPath();
@@ -85,7 +138,7 @@ function draw(paramObj)
 	context.closePath();
 	context.stroke();
 	
-	context.globalAlpha = 0.1;
+	context.globalAlpha = 0.2;
 	context.fillStyle="#eaa";
 	for(var y=0;y<paramObj.fullHeight;y=y+paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1))
 		context.fillRect(0, y, paramObj.fullWidth, paramObj.fontHeight*paramObj.interlinearFactor*paramObj.horizBlockRowCount);
@@ -94,21 +147,70 @@ function draw(paramObj)
 	context.fillStyle="#faa";
 	for(var i=0;i<paramObj.vetricalBlockCount;i++)
 		context.fillRect(i*(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth), 0,paramObj.vetricalBlockWidth , paramObj.fullHeight);
-
 }
 
-function createCanvas(paramObj)
+function clearCanvas()
 {
 	$("#mainCanvas")[0].width=paramObj.fullWidth;
 	$("#mainCanvas")[0].height=paramObj.fullHeight;
-	draw(paramObj);
+}
+
+function updateBlockCandidate(pos)
+{
+	var spacerWidth=(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth);
+	var spacerHeight=(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1) );	
+	var xIdx=Math.floor(pos.x/spacerWidth);
+	var yIdx=Math.floor(pos.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)));
+
+	blockCandidate= {
+		x:xIdx*spacerWidth,
+		y:yIdx*spacerHeight,
+		width:paramObj.vetricalBlockWidth,
+		height:(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount))
+		}
 }
 
 $(document).ready(function() {
 	$("#do").click(function() {
-		createCanvas(readParams());
+		canvas=$("#mainCanvas").get(0);
+		context=canvas.getContext("2d");		
+		window.paramObj=readParams();
+		blocks=[];
+		mainLoop();
 	});
+	
+
+	$("#mainCanvas").mousedown(function(e) {
+		var x = e.pageX - this.offsetLeft;
+		var y = e.pageY - this.offsetTop;
+		updateBlockCandidate({x:x,y:y});		
+		mousePressed=true;
+	});
+	
+	$("#mainCanvas").mouseup(function(e) {
+        var x = e.pageX - this.offsetLeft;
+        var y = e.pageY - this.offsetTop;
+		updateBlockCandidate({x:x,y:y});
+		if(blockCandidate)
+			blocks.push(blockCandidate);
+		blockCandidate=null;
+		mousePressed=false;
+		mainLoop();
+	});
+	
+	$("#mainCanvas").mousemove(function(e) {
+		if(mousePressed) {
+	        var x = e.pageX - this.offsetLeft;
+	        var y = e.pageY - this.offsetTop;
+			updateBlockCandidate({x:x,y:y});			
+			mainLoop();
+		}
+	});
+
 });
+
+
+
 
 </script>
 
@@ -116,14 +218,14 @@ $(document).ready(function() {
 <body>
 
 <div id="paramForm">
-Общая ширина: <input type="text" id="fullWidth" value="960"></input><br>
-Общая высота: <input type="text" id="fullHeight" value="2000"></input><br>
-Высота шрифта: <input type="text" id="fontHeight" value="16"></input><br>
+Общая ширина: <input type="text" id="fullWidth" value="960px"></input><br>
+Общая высота: <input type="text" id="fullHeight" value="2000px"></input><br>
+Высота шрифта: <input type="text" id="fontHeight" value="12pt"></input><br>
 Междустрочный интервал: <input type="text" id="interlinearFactor" value="1.5"></input><br>
 Высота строки: <span id="rowHeight"></span>
 Строк в горизонтальном блоке: <input type="text" id="horizBlockRowCount" value="3"></input><br>
 Количество вертикальных блоков: <input type="text" id="vetricalBlockCount" value="12"></input><br>
-Ширина вертикального блока: <input type="text" id="vetricalBlockWidth" value="120"></input><br>
+Ширина вертикального блока: <input type="text" id="vetricalBlockWidth" value="120px"></input><br>
 Расстояние между блоками: <input type="text" id="vetricalBlockSpacerWidth" value="15px"></input><br>
 <button id="do">Создать канвас</button>
 </div>

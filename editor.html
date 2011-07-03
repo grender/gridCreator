@@ -42,6 +42,7 @@ var canvas;
 var context;
 var blocks=[];
 var blockCandidate;
+var startCreatedBlockCoord;
 
 function drawBlocks() {
 	for (var i=0; i < blocks.length; i++) {
@@ -159,14 +160,36 @@ function updateBlockCandidate(pos)
 {
 	var spacerWidth=(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth);
 	var spacerHeight=(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1) );	
+	
+	var xStartIdx=Math.floor(startCreatedBlockCoord.x/spacerWidth);
+	var yStartIdx=Math.floor(startCreatedBlockCoord.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)));
+		
+	
 	var xIdx=Math.floor(pos.x/spacerWidth);
 	var yIdx=Math.floor(pos.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)));
 
+	if(xStartIdx>xIdx)
+	{
+		var temp=xStartIdx;
+		xStartIdx=xIdx;
+		xIdx=temp;
+	}
+
+	if(yStartIdx>yIdx)
+	{
+		var temp=yStartIdx;
+		yStartIdx=yIdx;
+		yIdx=temp;
+	}
+
+	var width=spacerWidth*(xIdx-xStartIdx)-paramObj.vetricalBlockSpacerWidth;
+	var height=spacerHeight*(yIdx-yStartIdx)-paramObj.fontHeight*paramObj.interlinearFactor;	
+	
 	blockCandidate= {
-		x:xIdx*spacerWidth,
-		y:yIdx*spacerHeight,
-		width:paramObj.vetricalBlockWidth,
-		height:(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount))
+		x:xStartIdx*spacerWidth,
+		y:yStartIdx*spacerHeight,
+		width:width,
+		height:height
 		}
 }
 
@@ -183,6 +206,7 @@ $(document).ready(function() {
 	$("#mainCanvas").mousedown(function(e) {
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
+		startCreatedBlockCoord={x:x,y:y};
 		updateBlockCandidate({x:x,y:y});		
 		mousePressed=true;
 	});

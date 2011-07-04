@@ -28,6 +28,15 @@ function getLimitedFunction(obj, func, freqPerSecond) {
     }
 }
 
+function Block(x,y,width,height,name)
+{
+	this.x=x;
+	this.y=y;
+	this.width=width;
+	this.height=height;
+	this.name=name;
+}
+
 
 this.mainLoop=getLimitedFunction(this,function() {
 	clearCanvas();
@@ -44,6 +53,11 @@ var blocks=[];
 var blockCandidate;
 var startCreatedBlockCoord;
 
+var fullBlockWidth;
+var fullBlockHeight;
+var blockSpacerWidth;
+var blockSpacerHeight;
+
 function drawBlocks() {
 	for (var i=0; i < blocks.length; i++) {
 		var block=blocks[i];
@@ -55,35 +69,48 @@ function drawBlock(block)
 {
 	context.globalAlpha = 0.2;
 	context.fillStyle="#aae";
-	context.fillRect(block.x,block.y,block.width,block.height);
+	context.fillRect(block.x*fullBlockWidth+blockSpacerWidth/2,block.y*fullBlockHeight,block.width*fullBlockWidth-blockSpacerWidth,block.height*fullBlockHeight-blockSpacerHeight);
+
+	context.globalAlpha = 0.5;	
+	context.strokeStyle="#000";
+	context.strokeRect(block.x*fullBlockWidth+blockSpacerWidth/2,block.y*fullBlockHeight,block.width*fullBlockWidth-blockSpacerWidth,block.height*fullBlockHeight-blockSpacerHeight);
+	
+	context.globalAlpha = 0.8;
+	context.font = "bold 12px sans-serif";
+	context.fillText("#blockName",block.x*fullBlockWidth+blockSpacerWidth/2+2,block.y*fullBlockHeight+block.height*fullBlockHeight-blockSpacerHeight-1 );
 }
 
 function drawNewBlock() {
 	if(!blockCandidate) return;
 	context.globalAlpha = 0.1;
 	context.fillStyle="#aae";
-	context.fillRect(blockCandidate.x,blockCandidate.y,blockCandidate.width,blockCandidate.height);	
+	context.fillRect(blockCandidate.x*fullBlockWidth+blockSpacerWidth/2,blockCandidate.y*fullBlockHeight,blockCandidate.width*fullBlockWidth-blockSpacerWidth,blockCandidate.height*fullBlockHeight-blockSpacerHeight);	
+}
+
+function parseParam(val)
+{
+	var typeParseRegExp=/([0-9]*)(em|pt|px)?/g;	
+	var parsedInput=typeParseRegExp.exec(val);
+	var val=parsedInput[1];
+	var dim=parsedInput[2];
+	if(!dim)
+	{
+		return parseFloat(val);			
+	}else {
+		return convert(val,dim,"px");
+	}	
 }
 
 function readParams()
 {
-	var nameRegExp=/(widht|height)+/g
+	var nameRegExp=/(width|height)+/g
 	var res={};
-	var childrens=$("#paramForm").children();
+	var childrens=$("#paramForm>input, #paramForm>div>input");
 	for(var i=0;i<childrens.length;i++)
 	{
 		if(nameRegExp.test(childrens[i].id.toLowerCase()))
 		{
-			var typeParseRegExp=/([0-9]*)(em|pt|px)?/g;	
-			var parsedInput=typeParseRegExp.exec(childrens[i].value);
-			var val=parsedInput[1];
-			var dim=parsedInput[2];
-			if(!dim)
-			{
-				res[childrens[i].id]=parseFloat(val);			
-			}else {
-				res[childrens[i].id]=convert(val,dim,"px");			
-			}
+			res[childrens[i].id]=parseParam(childrens[i].value);
 		}else {
 			res[childrens[i].id]=parseFloat(childrens[i].value);			
 		}
@@ -146,8 +173,8 @@ function drawGrid()
 	
 	
 	context.fillStyle="#faa";
-	for(var i=0;i<paramObj.vetricalBlockCount;i++)
-		context.fillRect(i*(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth), 0,paramObj.vetricalBlockWidth , paramObj.fullHeight);
+	for(var i=0;i<paramObj.verticalBlockCount;i++)
+		context.fillRect(i*(paramObj.verticalBlockWidth+paramObj.verticalBlockSpacerWidth)+blockSpacerWidth/2, 0,paramObj.verticalBlockWidth , paramObj.fullHeight);
 }
 
 function clearCanvas()
@@ -158,15 +185,15 @@ function clearCanvas()
 
 function updateBlockCandidate(pos)
 {
-	var spacerWidth=(paramObj.vetricalBlockWidth+paramObj.vetricalBlockSpacerWidth);
+	var spacerWidth=(paramObj.verticalBlockWidth+paramObj.verticalBlockSpacerWidth);
 	var spacerHeight=(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1) );	
 	
 	var xStartIdx=Math.floor(startCreatedBlockCoord.x/spacerWidth);
 	var yStartIdx=Math.floor(startCreatedBlockCoord.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)));
 		
 	
-	var xIdx=Math.floor(pos.x/spacerWidth);
-	var yIdx=Math.floor(pos.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)));
+	var xIdx=Math.floor(pos.x/spacerWidth)+1;
+	var yIdx=Math.floor(pos.y/(paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount)))+1;
 
 	if(xStartIdx>xIdx)
 	{
@@ -182,22 +209,68 @@ function updateBlockCandidate(pos)
 		yIdx=temp;
 	}
 
-	var width=spacerWidth*(xIdx-xStartIdx)-paramObj.vetricalBlockSpacerWidth;
-	var height=spacerHeight*(yIdx-yStartIdx)-paramObj.fontHeight*paramObj.interlinearFactor;	
+	blockCandidate= new Block(xStartIdx,yStartIdx,xIdx-xStartIdx,yIdx-yStartIdx);
+}
+
+function checkNumCols()
+{
+	var fullWidth=parseParam($("#fullWidth").val());
+	var blockCount=$("#verticalBlockCount").val();
+	var blockWidth=parseParam($("#verticalBlockWidth").val());
+	var spacerWidth=parseParam($("#verticalBlockSpacerWidth").val());
 	
-	blockCandidate= {
-		x:xStartIdx*spacerWidth,
-		y:yStartIdx*spacerHeight,
-		width:width,
-		height:height
-		}
+	var diff=fullWidth-blockCount*(blockWidth+spacerWidth);
+	if(diff!=0)
+	{
+		fullWidth=fullWidth-diff;
+	}
+	$("#fullWidth").val(fullWidth);
+}
+
+function keyUpOnForm()
+{
+	checkNumCols();
+	readFromForm();
+	$("#rowHeight").html(paramObj.fontHeight*paramObj.interlinearFactor);
+}
+
+function readFromForm()
+{
+	canvas=$("#mainCanvas").get(0);
+	context=canvas.getContext("2d");		
+	window.paramObj=readParams();
+	
+	fullBlockWidth=paramObj.verticalBlockWidth+paramObj.verticalBlockSpacerWidth;
+	fullBlockHeight=paramObj.fontHeight*paramObj.interlinearFactor*(paramObj.horizBlockRowCount+1);
+	blockSpacerWidth=paramObj.verticalBlockSpacerWidth;
+	blockSpacerHeight=paramObj.fontHeight*paramObj.interlinearFactor;	
+}
+
+function mouseDownCreate(pos)
+{
+	startCreatedBlockCoord=pos;
+	updateBlockCandidate(pos);	
+}
+
+function mouseUpCreate(pos)
+{
+	updateBlockCandidate(pos);
+	if(blockCandidate)
+		blocks.push(blockCandidate);
+	blockCandidate=null;
+	mousePressed=false;
+	mainLoop();	
+}
+
+function mouseMoveCreate(pos)
+{
+	updateBlockCandidate(pos);			
+	mainLoop();	
 }
 
 $(document).ready(function() {
 	$("#do").click(function() {
-		canvas=$("#mainCanvas").get(0);
-		context=canvas.getContext("2d");		
-		window.paramObj=readParams();
+		readFromForm();
 		blocks=[];
 		mainLoop();
 	});
@@ -206,30 +279,25 @@ $(document).ready(function() {
 	$("#mainCanvas").mousedown(function(e) {
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
-		startCreatedBlockCoord={x:x,y:y};
-		updateBlockCandidate({x:x,y:y});		
+		mouseDownCreate({x:x,y:y});
 		mousePressed=true;
 	});
 	
 	$("#mainCanvas").mouseup(function(e) {
         var x = e.pageX - this.offsetLeft;
         var y = e.pageY - this.offsetTop;
-		updateBlockCandidate({x:x,y:y});
-		if(blockCandidate)
-			blocks.push(blockCandidate);
-		blockCandidate=null;
-		mousePressed=false;
-		mainLoop();
+		mouseUpCreate({x:x,y:y});
 	});
 	
 	$("#mainCanvas").mousemove(function(e) {
 		if(mousePressed) {
 	        var x = e.pageX - this.offsetLeft;
 	        var y = e.pageY - this.offsetTop;
-			updateBlockCandidate({x:x,y:y});			
-			mainLoop();
+			mouseMoveCreate({x:x,y:y});
 		}
 	});
+	
+	$("#paramForm>input, #paramForm>div>input").keyup(keyUpOnForm);
 
 });
 
@@ -238,19 +306,26 @@ $(document).ready(function() {
 
 </script>
 
+<style>
+.verticalEditForm {
+	border: 1px solid gray;
+}
+</style>
+
 </head>
 <body>
-
 <div id="paramForm">
 Общая ширина: <input type="text" id="fullWidth" value="960px"></input><br>
 Общая высота: <input type="text" id="fullHeight" value="2000px"></input><br>
 Высота шрифта: <input type="text" id="fontHeight" value="12pt"></input><br>
 Междустрочный интервал: <input type="text" id="interlinearFactor" value="1.5"></input><br>
-Высота строки: <span id="rowHeight"></span>
+Высота строки: <span id="rowHeight"></span><br>
 Строк в горизонтальном блоке: <input type="text" id="horizBlockRowCount" value="3"></input><br>
-Количество вертикальных блоков: <input type="text" id="vetricalBlockCount" value="12"></input><br>
-Ширина вертикального блока: <input type="text" id="vetricalBlockWidth" value="120px"></input><br>
-Расстояние между блоками: <input type="text" id="vetricalBlockSpacerWidth" value="15px"></input><br>
+<div class="verticalEditForm">
+	Количество вертикальных блоков: <input type="text" id="verticalBlockCount" value="12"></input><br>
+	Ширина вертикального блока: <input type="text" id="verticalBlockWidth" value="60px"></input><br>
+	Расстояние между блоками: <input type="text" id="verticalBlockSpacerWidth" value="20px"></input><br>
+</div>
 <button id="do">Создать канвас</button>
 </div>
 <canvas id="mainCanvas" style="border: 1px solid;">
